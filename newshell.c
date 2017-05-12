@@ -11,21 +11,23 @@ char **tokenize(char **args);
 int launch_shell(char **args);
 void set_global_redirection_flag(char **args);
 
+char input[64],output[64];
 int in=0, out=0;
 
 int main(int argc , char **argv){
 
-  char **string;
+  char **string, tokenized[100];
   char *cmd;
   size_t buffsize = 1024;
   printf("Shell emulator started\n");
+
   cmd  = (char *)malloc(buffsize * sizeof(char));
   if(cmd = NULL)
     fprintf(stderr,"Unable to allocate\n");
 
   getline(&cmd,&buffsize,stdin);
-  set_global_redirection_flag(&cmd);
-  string = tokenize(&cmd);
+  string = tokenize(&cmd);  
+  set_global_redirection_flag(string);
   printf("%s",string[0]);
   launch_shell(string);
 
@@ -39,25 +41,32 @@ int launch_shell(char **args){
   pid = fork();
   int fd0, fd1;
 
-
   
-  if(pid < 0){ // fork is failed
+  if(pid < 0){ // fork  failed
 
     fprintf(stderr, "fork failed\n");
   }
 
-  printf("inside %s: %s\n",args[0],args[1]);
+  
   
   if(pid == 0){ // is the child process
 
     if(in){
 
-      fd0 = open(input, O_RDONLY); // here input is the inputfile from the command
+       if((fd0 = open(input, O_RDONLY)) < 0){   // here input is the inputfile from the command
+          perror("couldnt open file\n");
+
+
+      } 
       dup2(fd0, STDIN_FILENO);
       close(fd0);
-    }
+}
     else if(out){
-      fd1 = creat(output, 0644);  // output to the file in the command
+      
+      if((fd1 = creat(output, 0644)) <0){  // output to the file in the command
+
+         perror("couldnt open file");
+      }
       dup2(fd1, STDOUT_FILENO);
       close(fd1);
 
@@ -92,28 +101,33 @@ char **tokenize(char **string){
     }
 
     tokens[++index]= NULL;
-    printf("inside tokenize: %s\n",*tokens);
     return tokens; 
 }
 
 
+
+// set global flag for redirection
 void set_global_redirection_flag(char **args){
 
-  char c;
-  char *command = *args;
-  printf("%c",*command);
-  while(c =*command){
-
-    if(c == '>'){
-      putchar(c);
-      out =1;
-    }else if( c== '<'){
-
-      putchar(c);
-      in =1;
+  while(*args){
+    
+    if (strcmp(*args,"<") == 0){
+       in =1;
+       *args = NULL;
+       args++;
+       strcpy(input, *args);
+       args--;
     }
-  command++;
+    else if(strcmp(*args,">") == 0){
+
+      out =1;
+      *args = NULL;
+      args++;
+     
+      strcpy(output, *args);
+      args--;
+    }
+    args++;
   }
-  
   
 }
