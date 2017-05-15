@@ -9,10 +9,12 @@
 
 char **tokenize(char **args);
 int launch_shell(char **args);
-void set_global_redirection_flag(char **args);
+void set_global_flags(char **args);
+void execute_cmd(char **args);
 
-char input[64],output[64];
-int in=0, out=0;
+char input[64],output[64], from[64][64], to[100][100];
+int in=0, out=0,flag_pipe =0, p[2];
+
 
 int main(int argc , char **argv){
 
@@ -27,7 +29,7 @@ int main(int argc , char **argv){
 
   getline(&cmd,&buffsize,stdin);
   string = tokenize(&cmd);  
-  set_global_redirection_flag(string);
+  set_global_flags(string);
   printf("%s",string[0]);
   launch_shell(string);
 
@@ -49,8 +51,19 @@ int launch_shell(char **args){
 
   
   
-  if(pid == 0){ // is the child process
+  if(pid == 0){
+    // is the child process
 
+    if(flag_pipe){
+
+      pipe(p);
+      close(0);
+      close(p[0]);
+      close(p[1]);
+      dup(p[0]);
+      execute_cmd((char **)from);
+      
+    }
     if(in){
 
        if((fd0 = open(input, O_RDONLY)) < 0){   // here input is the inputfile from the command
@@ -60,7 +73,7 @@ int launch_shell(char **args){
       } 
       dup2(fd0, STDIN_FILENO);
       close(fd0);
-}
+    }
     else if(out){
       
       if((fd1 = creat(output, 0644)) <0){  // output to the file in the command
@@ -71,9 +84,26 @@ int launch_shell(char **args){
       close(fd1);
 
     }
-    if (execvp(args[0],args)== -1)
-      perror("Error executing newshell.c in exec");
+    execute_cmd(args);
   }
+  else{
+    //parent process
+    //close(0);
+    //close(p[0]);
+    //close(p[1]);
+    //dup(p[1]);
+    //execute_cmd((char **)to);
+    ;
+    
+  }
+}
+
+
+void execute_cmd(char **args){
+
+  if (execvp(args[0],args)== -1)
+      perror("Error executing newshell.c in exec");
+  
 }
 
 
@@ -105,9 +135,10 @@ char **tokenize(char **string){
 }
 
 
-
+char **to_pointer = (char **)to;
+char **from_pointer = (char **)from;
 // set global flag for redirection
-void set_global_redirection_flag(char **args){
+void set_global_flags(char **args){
 
   while(*args){
     
@@ -123,10 +154,49 @@ void set_global_redirection_flag(char **args){
       out =1;
       *args = NULL;
       args++;
-     
+      
       strcpy(output, *args);
       args--;
     }
+    else if(strcmp(*args,"|") == 0){
+      *args = NULL;
+      flag_pipe =1;
+      ++args;
+      printf("pipe present \n");
+     
+      
+      while(*args != NULL){
+        //to
+	if(*args == "|")
+	  break;
+        *to_pointer = *args; 
+         printf("after pipe: %s\n", *to_pointer);
+
+	 args++;
+	 to_pointer++;
+      }
+      //args--;
+      //args--;
+    }
+     else if(strcmp(*args, "|") != 0 && *args != NULL){
+
+      //from
+      while(*args != NULL){
+	if(strcmp(*args,"|")==0){
+
+	  //args--;
+	  break;
+	}
+        printf("before %s\n",*args);
+	*from_pointer = *args;
+	args++;
+	from_pointer++;
+
+	
+      }
+	 args--;
+      
+	 }
     args++;
   }
   
