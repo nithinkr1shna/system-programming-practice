@@ -60,10 +60,11 @@ int launch_shell(char **args){
       close(0);
       close(p[0]);
       close(p[1]);
-      dup(p[0]);
-      execute_cmd((char **)from);
+      dup2(p[0],0);
+      execute_cmd((char **)to);
       
     }
+    
     if(in){
 
        if((fd0 = open(input, O_RDONLY)) < 0){   // here input is the inputfile from the command
@@ -84,18 +85,10 @@ int launch_shell(char **args){
       close(fd1);
 
     }
+    //for single commands
     execute_cmd(args);
   }
-  else{
-    //parent process
-    //close(0);
-    //close(p[0]);
-    //close(p[1]);
-    //dup(p[1]);
-    //execute_cmd((char **)to);
-    ;
-    
-  }
+ 
 }
 
 
@@ -167,8 +160,11 @@ void set_global_flags(char **args){
       
       while(*args != NULL){
         //to
-	if(*args == "|")
+	if(strcmp(*args,">")==0 || strcmp(*args,"|")==0 || strcmp(*args, "<")){
+	  args--;
+	  printf("break on\n");
 	  break;
+	}
         *to_pointer = *args; 
          printf("after pipe: %s\n", *to_pointer);
 
@@ -182,7 +178,7 @@ void set_global_flags(char **args){
 
       //from
       while(*args != NULL){
-	if(strcmp(*args,"|")==0){
+	if(strcmp(*args,"|")==0 || strcmp(*args,"<")==0 || strcmp(*args,">")==0){
 
 	  //args--;
 	  break;
