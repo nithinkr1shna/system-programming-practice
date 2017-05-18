@@ -5,6 +5,8 @@
 #include<string.h>
 #include<fcntl.h>
 #include<sys/stat.h>
+#include<sys/wait.h>
+
 
 
 char **tokenize(char **args);
@@ -13,7 +15,7 @@ void set_global_flags(char **args);
 void execute_cmd(char **args);
 
 char input[64],output[64], from[64][64], to[100][100];
-int in=0, out=0,flag_pipe =0, p[2];
+int in=0, out=0,flag_pipe =0, p[2],background =0;
 
 
 int main(int argc , char **argv){
@@ -21,27 +23,32 @@ int main(int argc , char **argv){
   char **string, tokenized[100];
   char *cmd;
   size_t buffsize = 1024;
+  int k =1;
+ 
   printf("Shell emulator started\n");
 
   cmd  = (char *)malloc(buffsize * sizeof(char));
-  if(cmd = NULL)
+  if(cmd == NULL)
     fprintf(stderr,"Unable to allocate\n");
 
-  getline(&cmd,&buffsize,stdin);
+  while( k>0){
+ k = getline(&cmd,&buffsize,stdin);
+  
   string = tokenize(&cmd);  
   set_global_flags(string);
   printf("%s",string[0]);
   launch_shell(string);
-
+  } 
   return 0;
 }
 
 
+
 int launch_shell(char **args){
 
-  pid_t pid;
+  pid_t pid, w;
   pid = fork();
-  int fd0, fd1;
+  int fd0, fd1,status;
 
   
   if(pid < 0){ // fork  failed
@@ -86,7 +93,14 @@ int launch_shell(char **args){
 
     }
     //for single commands
-    execute_cmd(args);
+   
+      
+       execute_cmd(args);
+    
+  }
+  else{
+    
+    wait(&status);
   }
  
 }
@@ -134,14 +148,14 @@ char **from_pointer = (char **)from;
 void set_global_flags(char **args){
 
   while(*args){
-    
+    // checks for redirection
     if (strcmp(*args,"<") == 0){
        in =1;
        *args = NULL;
        args++;
        strcpy(input, *args);
        args--;
-    }
+    }// checks for redirection
     else if(strcmp(*args,">") == 0){
 
       out =1;
@@ -150,7 +164,15 @@ void set_global_flags(char **args){
       
       strcpy(output, *args);
       args--;
-    }
+    }//checks for background
+    else if(strcmp(*args,"&") == 0){
+
+      *args = NULL;
+      printf("process pushed to background\n Parent will wait for the termination of child process\n");
+      
+      background = 1;
+      //++args;
+    } // checks for pipe
     else if(strcmp(*args,"|") == 0){
       *args = NULL;
       flag_pipe =1;
@@ -160,7 +182,7 @@ void set_global_flags(char **args){
       
       while(*args != NULL){
         //to
-	if(strcmp(*args,">")==0 || strcmp(*args,"|")==0 || strcmp(*args, "<")){
+	if(strcmp(*args,">")==0 || strcmp(*args,"|")==0 || strcmp(*args, "<")==0){
 	  args--;
 	  printf("break on\n");
 	  break;
@@ -174,11 +196,11 @@ void set_global_flags(char **args){
       //args--;
       //args--;
     }
-     else if(strcmp(*args, "|") != 0 && *args != NULL){
+    else if(strcmp(*args, "|") != 0 && *args != NULL && strcmp(*args, "&") != 0){
 
       //from
       while(*args != NULL){
-	if(strcmp(*args,"|")==0 || strcmp(*args,"<")==0 || strcmp(*args,">")==0){
+	if(strcmp(*args,"|")==0 || strcmp(*args,"<")==0 || strcmp(*args,">")==0 || strcmp(*args,"&") == 0){
 
 	  //args--;
 	  break;
