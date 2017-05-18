@@ -13,9 +13,11 @@ char **tokenize(char **args);
 int launch_shell(char **args);
 void set_global_flags(char **args);
 void execute_cmd(char **args);
+void set_history(char *cmd);
+void disp_history(void);
 
 char input[64],output[64], from[64][64], to[100][100];
-int in=0, out=0,flag_pipe =0, p[2],background =0;
+int in=0, out=0,flag_pipe =0, p[2],background =0, history =0;
 
 
 int main(int argc , char **argv){
@@ -32,11 +34,10 @@ int main(int argc , char **argv){
     fprintf(stderr,"Unable to allocate\n");
 
   while( k>0){
- k = getline(&cmd,&buffsize,stdin);
-  
-  string = tokenize(&cmd);  
+  k = getline(&cmd,&buffsize,stdin);
+  set_history(cmd);
+  string = tokenize(&cmd);
   set_global_flags(string);
-  printf("%s",string[0]);
   launch_shell(string);
   } 
   return 0;
@@ -91,16 +92,17 @@ int launch_shell(char **args){
       dup2(fd1, STDOUT_FILENO);
       close(fd1);
 
-    }
+    }else if(history)
+      disp_history(); 
     //for single commands
    
-      
+    if(!history)
        execute_cmd(args);
     
   }
   else{
-    
-    wait(&status);
+    if(background)
+      wait(&status);
   }
  
 }
@@ -138,6 +140,7 @@ char **tokenize(char **string){
     }
 
     tokens[++index]= NULL;
+    
     return tokens; 
 }
 
@@ -165,6 +168,10 @@ void set_global_flags(char **args){
       strcpy(output, *args);
       args--;
     }//checks for background
+    else if(strcmp(*args, "history") == 0){
+
+      history = 1;
+    }
     else if(strcmp(*args,"&") == 0){
 
       *args = NULL;
@@ -196,7 +203,7 @@ void set_global_flags(char **args){
       //args--;
       //args--;
     }
-    else if(strcmp(*args, "|") != 0 && *args != NULL && strcmp(*args, "&") != 0){
+    else if(strcmp(*args, "|") != 0 && *args != NULL && strcmp(*args, "&") != 0 && strcmp(*args,"history") != 0){
 
       //from
       while(*args != NULL){
@@ -218,4 +225,16 @@ void set_global_flags(char **args){
     args++;
   }
   
+}
+
+char hist[1024];
+void set_history(char *cmd){
+
+  
+  strcat(hist,cmd);
+}
+
+void disp_history(void){
+
+  printf("%s", hist);
 }
