@@ -175,7 +175,7 @@ void set_global_flags(char **args){
     else if(strcmp(*args,"&") == 0){
 
       *args = NULL;
-      printf("process pushed to background\n Parent will wait for the termination of child process\n");
+      printf("process pushed to background\nParent will wait for the termination of child process\n");
       
       background = 1;
       //++args;
